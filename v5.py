@@ -6,12 +6,14 @@ from bpy.types import Operator, Panel, PropertyGroup
 from bpy.props import EnumProperty, FloatVectorProperty, FloatProperty, BoolProperty, PointerProperty
 
 bl_info = {
-    "name": "Improved Platonic Solids Generator",
-    "author": "Your Name",
-    "version": (1, 1),
+    "name": "Platonic Solids Generator",
+    "author": "Valentine Khytryi IK-32",
+    "version": (5, 0),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Platonic Solids",
-    "description": "Generate and manage Platonic solids using OOP approach",
+    "description": "Generate and manage Platonic solids with a simple UI",
+    "warning": "",
+    "doc_url": "",
     "category": "Object",
 }
 

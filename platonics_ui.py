@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Platonic Solids Generator",
-    "author": "Your Name",
+    "author": "Valentine Khytryi IK-32",
     "version": (1, 0),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Platonic Solids",
