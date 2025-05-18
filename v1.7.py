@@ -123,35 +123,59 @@ solid_classes = {
 # ==== Properties ====
 class PlatonicSolidProperties(PropertyGroup):
     shape_type: EnumProperty(
-        name="Shape",
-        items=[(k, k.title(), '') for k in solid_classes.keys()],
+        name="Тип тіла",
+        items=[
+            ('TETRAHEDRON', "Тетраедр", ""),
+            ('CUBE', "Куб", ""),
+            ('OCTAHEDRON', "Октаедр", ""),
+            ('DODECAHEDRON', "Додекаедр", ""),
+            ('ICOSAHEDRON', "Ікосаедр", "")
+        ],
         default='TETRAHEDRON'
     )
-    color: FloatVectorProperty(
-        name="Color",
-        subtype='COLOR',
-        size=4,
-        min=0.0,
-        max=1.0,
-        default=(0.8, 0.8, 0.8, 1.0)
-    )
+    
     scale: FloatProperty(
-        name="Scale",
+        name="Масштаб",
         default=1.0,
         min=0.1,
         max=10.0
     )
+    
     clear_before_create: BoolProperty(
-        name="Clear Before Create",
-        default=False
+        name="Очистити сцену",
+        default=True
     )
+    
+    color: FloatVectorProperty(
+        name="Колір",
+        subtype='COLOR',
+        default=(1.0, 0.0, 0.0, 1.0),
+        size=4,
+        min=0.0,
+        max=1.0
+    )
+    
     move_offset: FloatVectorProperty(
-        name="Move Offset",
-        description="Offset to move selected objects",
+        name="Зміщення",
         subtype='XYZ',
         default=(0.0, 0.0, 0.0),
-        step=0.1,
-        precision=3
+        size=3
+    )
+    
+    # Animation settings
+    active_animations: BoolProperty(
+        name="Активні анімації",
+        default=False
+    )
+    
+    animation_rotation: BoolProperty(
+        name="Обертання",
+        default=False
+    )
+    
+    animation_color: BoolProperty(
+        name="Кольоровий переход",
+        default=False
     )
 
 # ==== Builder Utilities ====
@@ -247,7 +271,14 @@ class OBJECT_OT_delete_selected(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        props = context.scene.platonic_props
         bpy.ops.object.delete(use_global=False, confirm=False)
+        # Reset animation states when deleting objects
+        props.active_animations = False
+        props.animation_rotation = False
+        props.animation_scale = False
+        props.animation_location = False
+        props.animation_color = False
         return {'FINISHED'}
 
 class OBJECT_OT_generate_template1(Operator):
@@ -310,9 +341,16 @@ class OBJECT_OT_add_rotation_animation(Operator):
     bl_label = "Анімація №1: Обертання"
 
     def execute(self, context):
+        props = context.scene.platonic_props
+        props.animation_rotation = True
+        props.active_animations = True
+        
         for obj in context.scene.objects:
             if obj.type == 'MESH':
-                obj.animation_data_clear()
+                # Only clear animation if it's not already active
+                if not props.animation_rotation:
+                    obj.animation_data_clear()
+                
                 obj.rotation_mode = 'XYZ'
                 obj.keyframe_insert(data_path="rotation_euler", frame=1)
                 obj.rotation_euler[2] += 6.28  # 360 degrees in radians
@@ -322,6 +360,90 @@ class OBJECT_OT_add_rotation_animation(Operator):
                     for mod in fcurve.modifiers:
                         fcurve.modifiers.remove(mod)
                     mod = fcurve.modifiers.new(type='CYCLES')
+        return {'FINISHED'}
+
+
+class OBJECT_OT_add_color_transition_animation(Operator):
+    bl_idname = "object.add_color_transition_animation"
+    bl_label = "Анімація №4: Кольоровий переход"
+
+    def execute(self, context):
+        props = context.scene.platonic_props
+        props.animation_color = True
+        props.active_animations = True
+        
+        for obj in context.selected_objects:
+            if obj.type == 'MESH':
+                # Get or create material
+                if not obj.data.materials:
+                    mat = bpy.data.materials.new(name="Color_Transition")
+                    obj.data.materials.append(mat)
+                else:
+                    mat = obj.data.materials[0]
+
+                # Clear existing animation only if it's not active
+                if not props.animation_color:
+                    if mat.use_nodes:
+                        node_tree = mat.node_tree
+                        for node in node_tree.nodes:
+                            if node.type == 'RGB':
+                                node_tree.animation_data_clear()
+                                node_tree.animation_data_create()
+
+                # Create color transition
+                colors = [
+                    # Warm colors
+                    (1, 0.2, 0, 1),      # Orange Red
+                    (1, 0.65, 0, 1),     # Gold
+                    (1, 0.8, 0.6, 1),    # Light Yellow
+                    (0.8, 0.8, 0.2, 1),  # Chartreuse
+                    (0.2, 0.8, 0.2, 1),  # Spring Green
+                    
+                    # Cool colors
+                    (0, 0.8, 0.8, 1),    # Turquoise
+                    (0, 0.6, 1, 1),      # Sky Blue
+                    (0.2, 0.4, 1, 1),    # Blue Violet
+                    (0.6, 0, 1, 1),      # Purple
+                    (1, 0, 0.8, 1),      # Magenta
+                    
+                    # Pastel colors
+                    (1, 0.6, 0.8, 1),    # Coral
+                    (0.8, 0.4, 0.6, 1),  # Rose
+                    (0.6, 0.8, 1, 1),    # Light Blue
+                    (0.8, 1, 0.8, 1),    # Light Green
+                    (1, 0.8, 0.6, 1),    # Peach
+                    
+                    # Bright colors
+                    (1, 0.4, 0.4, 1),    # Red Orange
+                    (0.4, 1, 0.4, 1),    # Bright Green
+                    (0.4, 0.4, 1, 1),    # Bright Blue
+                    (1, 0.4, 1, 1),      # Bright Purple
+                    (0.4, 1, 1, 1)       # Bright Cyan
+                ]
+
+                # Set initial color
+                mat.diffuse_color = colors[0]
+                mat.keyframe_insert(data_path="diffuse_color", frame=1)
+
+                # Create color transitions
+                frames = 250  # Total animation length
+                steps = len(colors)
+                step_length = frames // (steps - 1)
+
+                current_frame = 1
+                for i in range(1, steps):
+                    mat.diffuse_color = colors[i]
+                    mat.keyframe_insert(data_path="diffuse_color", frame=current_frame)
+                    current_frame += step_length
+
+                # Add cycles modifier
+                if mat.animation_data and mat.animation_data.action:
+                    for fcurve in mat.animation_data.action.fcurves:
+                        if fcurve.data_path == 'diffuse_color':
+                            for mod in fcurve.modifiers:
+                                fcurve.modifiers.remove(mod)
+                            mod = fcurve.modifiers.new(type='CYCLES')
+
         return {'FINISHED'}
 
 # ==== UI ====
@@ -374,6 +496,18 @@ class VIEW3D_PT_platonic_solids(Panel):
         box = layout.box()
         box.label(text="Анімації")
         box.operator("object.add_rotation_animation", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+        box.operator("object.add_scale_animation", icon='FULLSCREEN_ENTER')
+        box.operator("object.add_location_animation", icon='ARROW_LEFTRIGHT')
+        box.operator("object.add_color_transition_animation", icon='COLOR')
+        
+        # Add animation controls
+        box = layout.box()
+        box.label(text="Керування анімаціями")
+        box.prop(props, "active_animations", text="Активні анімації")
+        box.prop(props, "animation_rotation", text="Обертання")
+        box.prop(props, "animation_scale", text="Масштабування")
+        box.prop(props, "animation_location", text="Переміщення")
+        box.prop(props, "animation_color", text="Кольоровий переход")
 
 # ==== Registration ====
 def register():
@@ -386,11 +520,13 @@ def register():
     bpy.utils.register_class(OBJECT_OT_generate_template1)
     bpy.utils.register_class(OBJECT_OT_generate_template2)
     bpy.utils.register_class(OBJECT_OT_add_rotation_animation)
+    bpy.utils.register_class(OBJECT_OT_add_color_transition_animation)
     bpy.utils.register_class(VIEW3D_PT_platonic_solids)
 
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_platonic_solids)
     bpy.utils.unregister_class(OBJECT_OT_add_rotation_animation)
+    bpy.utils.unregister_class(OBJECT_OT_add_color_transition_animation)
     bpy.utils.unregister_class(OBJECT_OT_generate_template2)
     bpy.utils.unregister_class(OBJECT_OT_generate_template1)
     bpy.utils.unregister_class(OBJECT_OT_delete_selected)
